@@ -1,0 +1,17 @@
+*.pyc
+*.pyo
+*.log
+*.db
+*.bin
+*.exe
+*.vcf
+config.py
+data/
+venv/
+build/
+dist/
+
+/redist/
+/debug.py
+
+/requests/
