@@ -25,6 +25,11 @@ def update_data(d1, d2):
     return {k: list(set(d1.get(k, []) + d2.get(k, []))) for k in set(d1).union(d2)}
 
 
+def get_longest(arr):
+    mp = list(map(len, arr))
+    return arr[mp.index(max(mp))]
+
+
 class vcf_Builder():
 
     def __init__(self, vcf_folder):
@@ -33,6 +38,7 @@ class vcf_Builder():
         self.vcf_data = {}
         self.telephons = set()
         self.dt = datetime.datetime.now().isoformat().replace(':', '').replace('-', '')[:-7] + 'Z'
+        self.contact_photo.mkdir(exist_ok=True)
 
     def parse(self, vcf: Path):
         with vcf.open(mode='r') as f:
@@ -65,8 +71,8 @@ class vcf_Builder():
                         vcf.setdefault(k, []).append(v.strip())
 
                 elif 'end' in k and 'fn' in vcf:
-                    fn = self.get_longest(vcf['fn']).replace('\\', '')
-                    # пытаемся найти лучшее фото
+                    fn = get_longest(vcf['fn']).replace('\\', '')
+                    # пытаемся найти лучшее фото и добавить его в 'photo;value=uri'
                     photo = self.get_photo(fn)
                     if photo:
                         vcf.setdefault('photo;value=uri', []).append(f'data:image/jpeg;base64\,{photo}')
@@ -78,7 +84,7 @@ class vcf_Builder():
                         del vcf['photo']
 
                     if 'photo;encoding=b;type=jpeg' in vcf:
-                        photo = self.get_longest(vcf['photo;encoding=b;type=jpeg'])
+                        photo = get_longest(vcf['photo;encoding=b;type=jpeg'])
                         if photo:
                             vcf.setdefault('photo;value=uri', []).append(f'data:image/jpeg;base64\,{photo}')
                         del vcf['photo;encoding=b;type=jpeg']
@@ -89,10 +95,6 @@ class vcf_Builder():
                     vcf = {}
                 else:
                     vcf.setdefault(k, []).append(v)
-
-    def get_longest(self, arr):
-        mp = list(map(len, arr))
-        return arr[mp.index(max(mp))]
 
     def get_photo(self, fn):
         f = self.contact_photo / f'{fn}.jpg'
@@ -106,7 +108,7 @@ class vcf_Builder():
             if r.ok:
                 photos.append(r.content)
 
-        photo = self.get_longest(photos)
+        photo = get_longest(photos)
         f.write_bytes(photo)
         return self.get_photo(fn)
 
@@ -117,7 +119,7 @@ class vcf_Builder():
                 self.parse(vcf_file)
             for vcf in self.vcf_data.values():
                 if any('tel' in _ for _ in vcf):
-                    print(f"processsing {self.get_longest(vcf['fn'])}")
+                    print(f"processsing {get_longest(vcf['fn'])}")
                     f.write('BEGIN:VCARD\n')
                     f.write('VERSION:4.0\n')
                     for k, v in vcf.items():
@@ -125,11 +127,11 @@ class vcf_Builder():
                             for i in v:
                                 f.write(f"{k.upper()}:{i}" + '\n')
                         else:
-                            f.write(f"{k.upper()}:{self.get_longest(v)}\n")
+                            f.write(f"{k.upper()}:{get_longest(v)}\n")
 
                     f.write('END:VCARD\n')
                     c += 1
-            print(f'write {c} contacts')
+            print(f'{c} contacts wrote to {dst.absolute()}')
 
 
 if __name__ == '__main__':
